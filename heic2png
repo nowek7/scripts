@@ -1,0 +1,99 @@
+#!/bin/bash
+
+SET_TIME=true
+USE_PARALLEL=false
+
+help()
+{
+  printf "Tool for converting HEIC files to png files\n"
+  printf "\n"
+  printf "Usage: heic2png [OPTION]... [FILE|DIRECTORY]\n"
+  printf "\n"
+  printf "Mandatory arguments to long options are mandatory for short options too.\n"
+  printf "  -d, --directory \t input directory contain HEIC files\n"
+  printf "  -o, --output    \t output directory\n"
+  printf "  -t, --time      \t setting date and time of each converted file to input file\n"
+  printf "  -p, --parallel  \t convert files using the parallel package\n"
+  printf "      --help      \t display this help and exit\n"
+}
+
+execute()
+{
+  find "$1" -type f -iname '*.heic' | while read -r file; \
+  do \
+    filename=$(basename "${file%.*}").png
+    convert "${file}" "$2"/"${filename}" ; \
+  done
+}
+
+parallel_execute()
+{
+  REQUIRED_PKG="parallel"
+  PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $REQUIRED_PKG|grep "install ok installed")
+  echo Checking for $REQUIRED_PKG: "$PKG_OK"
+
+  if [ "" = "$PKG_OK" ]; then
+    echo "No $REQUIRED_PKG. Setting up $REQUIRED_PKG."
+    sudo apt-get --yes install $REQUIRED_PKG
+  fi
+
+  find "$1" -type f -iname '*.heic' | parallel convert {} "$2"/{.}.png
+}
+
+if [ $# -gt 0 ]
+then
+  while [ $# -gt 0 ]; do
+    case $1 in
+      -d|--directory)
+        DIR="$2"
+        shift;;
+      -o|--output)
+        OUTPUT_DIR="$2"
+        shift;;
+      -p|--parallel)
+        USE_PARALLEL=true
+        ;;
+      -t|--time)
+        SET_TIME=true
+        ;;
+      --help)
+        help
+        exit;;
+      *)
+        if [ -z "$1" ]; then exit; fi
+
+        file=$1
+        mime_type=$(file -b --mime-type "$file")
+        if [ "$mime_type" = "image/heic" ]; then
+          png_file=$(basename "${file%.*}").png
+          convert "$file" "$png_file";
+
+          if [ "$SET_TIME" = true ]; then
+            exiftool '-DateTimeOriginal>FileModifyDate' "$png_file"
+          fi
+
+          shift
+        fi
+    esac
+    shift
+  done
+
+  if [ -n "$DIR" ]; then
+    if [ -z "$OUTPUT_DIR" ]; then
+      OUTPUT_DIR="$DIR"
+    fi
+
+    printf "Converting...\r"
+    if [ "$USE_PARALLEL" = true ]; then
+      parallel_execute "$DIR" "$OUTPUT_DIR"
+    else
+      execute "$DIR" "$OUTPUT_DIR"
+    fi
+
+    if [ "$SET_TIME" = true ]; then
+      exiftool '-DateTimeOriginal>FileModifyDate' "$OUTPUT_DIR"/*.png
+    fi
+  fi
+else
+  help
+fi
