@@ -1,3 +1,5 @@
+*.json
+
 ### C ###
 # Prerequisites
 *.d
