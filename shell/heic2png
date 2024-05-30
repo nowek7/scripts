@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+
+USE_PARALLEL=false
+FILE_ARGS=()
+
+help()
+{
+  printf "Tool for converting HEIC files to png files\n"
+  printf "\n"
+  printf "Usage: heic2png [OPTION]... [FILE|FILES|DIRECTORY]\n"
+  printf "\n"
+  printf "Mandatory arguments to long options are mandatory for short options too.\n"
+  printf "  -d, --directory \t input directory contain HEIC files\n"
+  printf "  -o, --output    \t output directory\n"
+  printf "  -p, --parallel  \t convert files using the parallel package\n"
+  printf "  -h, --help      \t display this help and exit\n"
+}
+
+execute()
+{
+  printf "%s\n" "${FILE_ARGS[@]}" | while read -r file; do
+    filename="${file%.*}"
+    magick "$file" "${OUTPUT_DIR:-.}/$filename.png"
+  done
+}
+
+parallel_execute()
+{
+  REQUIRED_PKG="parallel"
+  PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $REQUIRED_PKG | grep "install ok installed")
+
+  echo "Checking for $REQUIRED_PKG: $PKG_OK"
+
+  if [ -z "$PKG_OK" ]; then
+    echo "No $REQUIRED_PKG. Setting up $REQUIRED_PKG."
+    sudo apt-get --yes install $REQUIRED_PKG
+  fi
+
+  printf "%s\n" "${FILE_ARGS[@]}" | parallel -I {} magick {} "${OUTPUT_DIR:-.}/{/.}.png"
+}
+
+while [ $# -gt 0 ]; do
+  case $1 in
+    -d|--directory)
+      DIR="$2"
+      shift 2;;
+    -o|--output)
+      OUTPUT_DIR="$2"
+      shift 2;;
+    -p|--parallel)
+      USE_PARALLEL=true
+      shift;;
+    -h|--help)
+      help
+      exit;;
+    -*)
+      echo "Unknown option: $1"
+      help
+      exit 1;;
+    *)
+      FILE_ARGS+=("$1")
+      shift;;
+  esac
+done
+
+if [ -n "$DIR" ]; then
+  if [ ! -d "$DIR" ]; then
+    echo "Error: Input directory does not exists"
+    exit 1
+  fi
+
+  FILE_ARGS=("$(find "$DIR" -type f -iname '*.heic')")
+fi
+
+if [ ${#FILE_ARGS[@]} -eq 0 ]; then
+  printf "Error: No input files specified\n"
+  help
+  exit 1
+fi
+
+if [ -n "$OUTPUT_DIR" ] && [ ! -d "$OUTPUT_DIR" ]; then
+  mkdir -p "$OUTPUT_DIR"
+fi
+
+echo "Converting HEIC files to PNG..."
+
+if [ "$USE_PARALLEL" = true ]; then
+  parallel_execute
+else
+  execute
+fi
+
+if ! command -v exiftool &> /dev/null; then
+  echo "Error: exiftool is not installed. Cannot set file modification times."
+  exit 1
+fi
+
+if [ -n "$OUTPUT_DIR" ]; then
+  find "$OUTPUT_DIR" -type f -iname '*.png' -exec exiftool '-DateTimeOriginal>FileModifyDate' {} \;
+else
+  for file in "${FILE_ARGS[@]}"; do
+    png_file="${file%.*}.png"
+    exiftool '-DateTimeOriginal>FileModifyDate' "$png_file"
+  done
+fi
+
+echo "Conversion complete"
+

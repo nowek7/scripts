@@ -1,0 +1,257 @@
+#!/usr/bin/env bash
+
+TODAY="$(date +'%d_%m_%Y')"
+
+BASE_BACKUP_DIR="$HOME/Dropbox/backup"
+if [[ ! -d  $BASE_BACKUP_DIR ]]; then
+  mkdir -p "$BASE_BACKUP_DIR"
+fi
+
+BACKUP_APP_DIR="$BASE_BACKUP_DIR/apps"
+if [[ ! -d  $BACKUP_APP_DIR ]]; then
+  mkdir -p "$BACKUP_APP_DIR"
+fi
+
+TEMP_DIR="$BASE_BACKUP_DIR/temp"
+if [[ ! -d  $BACKUP_APP_DIR ]]; then
+  mkdir -p "$TEMP_DIR"
+fi
+
+print_log() {
+  local indent=""
+  local num_tabs=$1
+
+  # Check if the number of tabs is provided and is a positive integer
+  if [[ $num_tabs =~ ^[1-9][0-9]*$ ]]; then
+    for ((i = 0; i < num_tabs; i++)); do
+      indent+="\t"
+    done
+  else
+    echo "Please provide a positive integer as the number of tabs."
+    return
+  fi
+
+  printf "${indent}%s\n" "$2"
+}
+
+backup_dotfiles()
+{
+  local DESTINATION_BACKUP="$BASE_BACKUP_DIR/dotfiles/dotfiles_$TODAY.tar.gz"
+  local SOURCE_BACKUP="$HOME/dotfiles"
+
+  echo "Creating backup of dotfiles..."
+  tar -czf "$DESTINATION_BACKUP" \
+      --exclude=./zsh/oh-my-zsh \
+      --exclude=./zsh/install.sh \
+      --directory="$SOURCE_BACKUP" \
+      .
+}
+
+backup_vscode_settings()
+{
+  num_tabs=$1
+  current_num_tabs=$((parent_num_tabs + 1))
+
+  print_log "$num_tabs" "vscode"
+
+  local VSCODE_CONFIG_DIR="$HOME/.config/Code/User"
+  if [[ ! -d $VSCODE_CONFIG_DIR ]]; then
+    print_log "$current_num_tabs" "Could not find $VSCODE_CONFIG_DIR"
+    return
+  fi
+  local files=(
+    "$VSCODE_CONFIG_DIR/snippets"
+    "$VSCODE_CONFIG_DIR/keybindings.json"
+    "$VSCODE_CONFIG_DIR/settings.json"
+    "$VSCODE_CONFIG_DIR/tasks.json"
+  )
+
+  for f in "${files[@]}"; do
+    cp -r "$f" "$TEMP_DIR"
+  done
+
+  local VSCODE_EXTENSION_FILE="$TEMP_DIR/installed_extensions.txt"
+  code --list-extensions >> "$VSCODE_EXTENSION_FILE"
+
+  local VSCODE_DIR="$BACKUP_APP_DIR/vscode"
+  local DESTINATION_BACKUP="$VSCODE_DIR/config_$TODAY.tar.gz"
+
+  tar -czf "$DESTINATION_BACKUP" \
+      --remove-files \
+      --directory="$TEMP_DIR" \
+      .
+}
+
+backup_fleet_config()
+{
+  parent_num_tabs=$1
+  current_num_tabs=$((parent_num_tabs + 1))
+
+  print_log "$parent_num_tabs" fleet
+
+  local FLEET_DIR="$HOME/.fleet"
+  if [[ ! -d $FLEET_DIR ]]; then
+    print_log "$current_num_tabs" "Could not find $FLEET_DIR"
+    return
+  fi
+
+  local DESTINATION_BACKUP="$BACKUP_APP_DIR/jetbrains/fleet"
+  if [[ ! -d $DESTINATION_BACKUP ]]; then
+    mkdir -p "$DESTINATION_BACKUP"
+  fi
+
+  local BACKUP_FILE="$DESTINATION_BACKUP/config_$TODAY.tar.gz"
+
+  tar -czf "$BACKUP_FILE" \
+      --remove-files \
+      --directory="$FLEET_DIR" \
+      .
+}
+
+backup_mozilla_firefox_config()
+{
+  parent_num_tabs=$1
+  current_num_tabs=$((parent_num_tabs + 1))
+
+  print_log "$parent_num_tabs" "mozilla firefox"
+
+  local FIREFOX_DIR="$HOME/.mozilla/firefox"
+  if [[ ! -d $FIREFOX_DIR ]]; then
+    print_log "$current_num_tabs" "Could not find $FIREFOX_DIR"
+    return
+  fi
+
+  local DESTINATION_BACKUP="$BACKUP_APP_DIR/mozilla/firefox"
+  if [[ ! -d $DESTINATION_BACKUP ]]; then
+    mkdir -p "$DESTINATION_BACKUP"
+  fi
+
+  local BACKUP_FILE="$DESTINATION_BACKUP/profile_$TODAY.tar.gz"
+
+  tar -czf "$BACKUP_FILE" \
+      --exclude="./Crash Reports" \
+      --exclude="./Pending Pings" \
+      --directory="$FIREFOX_DIR" \
+      .
+}
+
+backup_mozilla_thunderbird_config()
+{
+  parent_num_tabs=$1
+  current_num_tabs=$((parent_num_tabs + 1))
+
+  print_log "$parent_num_tabs" "mozilla thunderbird"
+
+  local THUNDERBIRD_DIR="$HOME/.thunderbird"
+  if [[ ! -d $THUNDERBIRD_DIR ]]; then
+    print_log "$current_num_tabs" "Could not find $THUNDERBIRD_DIR"
+    return
+  fi
+
+  local DESTINATION_BACKUP="$BACKUP_APP_DIR/mozilla/thunderbird"
+  if [[ ! -d $DESTINATION_BACKUP ]]; then
+    mkdir -p "$DESTINATION_BACKUP"
+  fi
+
+  local BACKUP_FILE="$DESTINATION_BACKUP/profile_$TODAY.tar.gz"
+
+  tar -czf "$BACKUP_FILE" \
+      --exclude="./Crash Reports" \
+      --exclude="./Pending Pings" \
+      --directory="$THUNDERBIRD_DIR" \
+      .
+}
+
+backup_list_installed_apps()
+{
+  parent_num_tabs=$1
+  print_log "$parent_num_tabs" "Creating list of of installed apps..."
+
+  local BACKUP_FILE="$BACKUP_APP_DIR/snap_installed_apps.txt"
+  snap list --all | awk '{if (NR > 1) print $1, $3, $4}' > "$BACKUP_FILE"
+
+  local BACKUP_FILE="$BACKUP_APP_DIR/installed_apps.txt"
+  dpkg --get-selections | grep -v deinstall > "$BACKUP_FILE"
+}
+
+backup_list_tilling_extension()
+{
+  parent_num_tabs=$1
+  current_num_tabs=$((parent_num_tabs + 1))
+
+  print_log "$parent_num_tabs" "Backup tiling-assistant"
+
+  local CONFIG_DIR="$HOME/.config/tiling-assistant"
+  if [[ ! -d $CONFIG_DIR ]]; then
+    print_log "$current_num_tabs" "Could not find $CONFIG_DIR"
+  fi
+
+  local DESTINATION_BACKUP="$BACKUP_APP_DIR/tiling-assistant"
+  if [[ ! -d $DESTINATION_BACKUP ]]; then
+    mkdir -p "$DESTINATION_BACKUP"
+  fi
+
+  local BACKUP_FILE="$DESTINATION_BACKUP/tiling-assistant_$TODAY.tar.gz"
+
+  tar -czf "$BACKUP_FILE" \
+      --directory="$CONFIG_DIR" \
+      .
+}
+
+backup_app_config()
+{
+  echo "Creating backup of apps..."
+  indentation_level=1
+
+  backup_vscode_settings "$indentation_level"
+  backup_fleet_config "$indentation_level"
+  backup_mozilla_firefox_config "$indentation_level"
+  backup_mozilla_thunderbird_config "$indentation_level"
+  backup_list_installed_apps "$indentation_level"
+  backup_list_tilling_extension "$indentation_level"
+}
+
+backup_usr_directory()
+{
+  parent_num_tabs=$1
+  print_log "$parent_num_tabs" "usr directory"
+
+  local DESTINATION_BACKUP="$BACKUP_APP_DIR/system/usr"
+  if [ ! -d "$DESTINATION_BACKUP" ]; then
+    mkdir -p "$DESTINATION_BACKUP"
+  fi
+
+  local BACKUP_FILE="$DESTINATION_BACKUP/files_$TODAY.tar.gz"
+
+  local SOURCE_DIRS=(
+    "bin"
+    "lib"
+    "include"
+    "etc"
+  )
+
+  tar -czf "$BACKUP_FILE" \
+      -C "/usr/local/" "${SOURCE_DIRS[@]}"
+}
+
+backup_user_system_files()
+{
+  echo "Creating backup of user-system files..."
+  indentation_level=1
+
+  backup_usr_directory "$indentation_level"
+}
+
+remove_old_backups()
+{
+  echo "Remove old backups than 30 days"
+
+  find "$BASE_BACKUP_DIR" -name "*.tar.gz" -type f -mtime +30 -exec rm {} \;
+}
+
+remove_old_backups
+
+backup_user_system_files
+backup_dotfiles
+backup_app_config
+
