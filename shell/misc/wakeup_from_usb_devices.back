@@ -1,0 +1,79 @@
+#!/bin/sh
+
+# Action script to enable wake after suspend by keyboard or mouse
+
+
+
+KB="$(dmesg | grep "Logitech MX Keys as" | grep -o -P "usb*")"
+echo "$KB"
+
+KB="$(dmesg | grep "Logitech MX Master 3 as" | grep -o -P "usb.{0,5}")"
+echo "$KB"
+
+# if [ "$1" = post ]
+#     then
+#     KB="$(dmesg | grep "Logitech MX Keys as)" # | grep -o -P "usb.{0,5}" | grep -E -o ".{0,3}$" | tail -1)"
+#     # echo enabled > /sys/bus/usb/devices/"${KB}"/power/wakeup
+# fi
+
+# if [ "$1" = pre ]
+#     then
+#     KB="$(dmesg | grep "Logitech MX Master 3 as" | grep -o -P "usb.{0,5}" | grep -E -o ".{0,3}$" | tail -1)"
+#     echo "$KB"
+#     # echo enabled > /sys/bus/usb/devices/"${KB}"/power/wakeup
+# fi
+
+
+#!/bin/sh
+
+# Action script to enable wake after suspend
+# -> dock station (1-3.1   or /sys/bus/usb/devices/1-3.1/product:Dell Universal Dock D6000)
+# -> mouse        (1-3.2.3 or /sys/bus/usb/devices/1-3.2.3/product:USB Receiver)
+# -> keyboard     (1-3.2.4 or /sys/bus/usb/devices/1-3.2.4/product:USB Receiver)
+
+if [ "$1" = post ]
+then
+    # KB="$(dmesg | grep "Logitech MX Keys as)" | grep -o -P "usb.{0,5}" | grep -E -o ".{0,3}$" | tail -1)"
+    echo enabled > /sys/bus/usb/devices/1-3.1/power/wakeup
+    echo enabled > /sys/bus/usb/devices/1-3.2.3/power/wakeup
+    echo enabled > /sys/bus/usb/devices/1-3.2.4/power/wakeup
+fi
+
+if [ "$1" = pre ]
+then
+    # KB="$(dmesg | grep "Logitech MX Master 3 as" | grep -o -P "usb.{0,5}" | grep -E -o ".{0,3}$" | tail -1)"
+    echo enabled > /sys/bus/usb/devices/1-3.1/power/wakeup
+    echo enabled > /sys/bus/usb/devices/1-3.2.3/power/wakeup
+    echo enabled > /sys/bus/usb/devices/1-3.2.4/power/wakeup
+fi
+
+# Bus 001 Device 009: ID 046d:c52b Logitech, Inc. Unifying Receiver
+# Bus 001 Device 007: ID 046d:c52b Logitech, Inc. Unifying Receiver
+
+
+# /sys/bus/usb/devices/1-3.1/product:Dell Universal Dock D6000
+# /sys/bus/usb/devices/1-3.2.3/product:USB Receiver
+# /sys/bus/usb/devices/1-3.2.4/product:USB Receiver
+
+
+# [ 1237.938419] hid-generic 0003:046D:408A.0009: input,hidraw4: USB HID v1.11 Keyboard [Logitech Wireless Device PID:408a] on usb-0000:00:14.0-3.2.4/input2:1
+# [ 1238.464423] input: Logitech MX Master 3 as /devices/pci0000:00/0000:00:14.0/usb1/1-3/1-3.2/1-3.2.3/1-3.2.3:1.2/0003:046D:C52B.0003/0003:046D:4082.0008/input/input36
+
+# [ 1238.468285] logitech-hidpp-device 0003:046D:4082.0008: input,hidraw1: USB HID v1.11 Keyboard [Logitech MX Master 3] on usb-0000:00:14.0-3.2.3/input2:1
+# [ 1238.606549] input: Logitech MX Keys as /devices/pci0000:00/0000:00:14.0/usb1/1-3/1-3.2/1-3.2.4/1-3.2.4:1.2/0003:046D:C52B.0007/0003:046D:408A.0009/input/input37
+
+
+# /sys/bus/usb/devices/1-1/product:Mass Storage Device
+# /sys/bus/usb/devices/1-3.1/product:Dell Universal Dock D6000
+# /sys/bus/usb/devices/1-3.2.3/product:USB Receiver
+# /sys/bus/usb/devices/1-3.2.4/product:USB Receiver
+# /sys/bus/usb/devices/1-3.2/product:USB2.1 Hub
+# /sys/bus/usb/devices/1-3.3.1/product:D6000 Controller
+# /sys/bus/usb/devices/1-3.3/product:USB2.0 Hub
+# /sys/bus/usb/devices/1-3/product:USB2.1 Hub
+# /sys/bus/usb/devices/1-5/product:Lenovo EasyCamera
+# /sys/bus/usb/devices/2-2/product:DataTraveler 3.0
+# /sys/bus/usb/devices/usb1/product:xHCI Host Controller
+# /sys/bus/usb/devices/usb2/product:xHCI Host Controller
+
+
