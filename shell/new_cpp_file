@@ -5,7 +5,7 @@ if [[ -n $1 ]]; then
     number_of_challenges=$1
 fi
 
-read -d '\n' cpp_template << EOF
+read -rd '\n' cpp_template << EOF
 #include <cassert>
 #include <iostream>
 

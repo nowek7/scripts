@@ -1,0 +1,20 @@
+#!/bin/sh
+
+#\usepackage[cp1250]{inputenc} -> #\usepackage[utf8]{inputenc}
+
+find . -type f -name "*.tex" -not -path "*/.git/*" | while read -r f; do
+    echo "Processing: $f"
+    if iconv -f cp1250 -t utf-8 "$f" -o tmp; then
+        if grep -q cp1250 tmp; then
+            sed 's/cp1250/utf8/g' tmp > tmp2
+            mv tmp2 "$f"
+            echo "Updated: $f"
+        else
+            mv tmp "$f"
+        fi
+        rm -f tmp
+    else
+        echo "Failed to convert: $f"
+        rm -f tmp
+    fi
+done
