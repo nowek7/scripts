@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+
+if [ "$EUID" -ne 0 ]; then
+  script_path=$([[ "$0" = /* ]] && echo "$0" || echo "$PWD/${0#./}")
+  sudo "$script_path" || (
+    echo 'Administrator privileges are required.'
+    exit 1
+  )
+  exit 0
+fi
+
+empty_trash()
+{
+  echo '*** Empty trash'
+
+  rm -rfv ~/.local/share/Trash/*
+  sudo rm -rfv /root/.local/share/Trash/*
+  rm -rfv ~/snap/*/*/.local/share/Trash/*
+  rm -rfv ~/.var/app/*/data/Trash/*
+}
+
+clear_system_data()
+{
+  echo '*** Clear system crash report files'
+  sudo rm -rfv /var/crash/*
+  sudo rm -rfv /var/lib/systemd/coredump/
+
+  echo '*** Clear system logs ("journald")'
+  if ! command -v 'journalctl' &> /dev/null; then
+    echo 'Skipping because "journalctl" is not found.'
+  else
+    sudo journalctl --vacuum-time=1s
+  fi
+  sudo rm -rfv /run/log/journal/*
+  sudo rm -rfv /var/log/journal/*
+}
+
+clear_tmp_folders()
+{
+  echo '*** Clear global temporary folders'
+
+  sudo rm -rfv /tmp/*
+  sudo rm -rfv /var/tmp/*
+}
+
+clear_apt_data()
+{
+  echo '*** Clear obsolete APT packages'
+  if ! command -v 'apt-get' &> /dev/null; then
+    echo 'Skipping because "apt-get" is not found.'
+    return
+  fi
+
+  sudo apt-get autoclean
+  sudo apt-get -y autoremove --purge
+  sudo apt-get clean
+  sudo rm -rfv /var/lib/apt/lists/*
+}
+
+remove_old_snap_packages()
+{
+  echo '*** Remove old Snap packages'
+
+  if ! command -v 'snap' &> /dev/null; then
+    echo 'Skipping because "snap" is not found.'
+  else
+    sudo rm -rfv /var/lib/snapd/cache/*
+
+    snap list --all | while read name version rev tracking publisher notes; do
+    if [[ $notes = *disabled* ]]; then
+      sudo snap remove "$name" --revision="$rev";
+      status=$?
+      if [ $status -eq 0 ]; then
+        echo "Snap package $name was removed"
+      else
+        echo "Failed to remove snap package $name"
+      fi
+    fi
+    done
+  fi
+}
+
+remove_shared_caches()
+{
+  echo '*** Clear user-specific cache'
+  rm -rfv ~/.cache/*
+  sudo rm -rfv root/.cache/*
+
+  echo '*** Clear system-wide cache'
+  rm -rf /var/cache/*
+
+  echo '*** Clear Snap application cache'
+  rm -fv ~/snap/*/*/.cache/*
+
+  echo '*** Clear thumbnails (icon cache)'
+  rm -rfv ~/.thumbnails/*
+  rm -rfv ~/.cache/thumbnails/*
+}
+
+empty_trash
+clear_system_data
+clear_tmp_folders
+clear_apt_data
+remove_old_snap_packages
+remove_shared_caches
+
+echo 'Press any key to exit.'
+read -rn 1 -s
