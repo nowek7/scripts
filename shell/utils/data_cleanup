@@ -66,7 +66,8 @@ remove_old_snap_packages()
   else
     sudo rm -rfv /var/lib/snapd/cache/*
 
-    snap list --all | while read name version rev tracking publisher notes; do
+    # shellcheck disable=SC2034
+    snap list --all | while read -r name version rev tracking publisher notes; do
     if [[ $notes = *disabled* ]]; then
       sudo snap remove "$name" --revision="$rev";
       status=$?
